@@ -14,7 +14,6 @@
 #          Company: wanwei-tech
 #
 #============================================================================================
- 
 # set -x
 
 BACKUP_DATE=`date +%F`
@@ -37,6 +36,8 @@ done
 
 mv $FTP_CONF_DIR/pam_vsftpd $PAM_CONF_DIR/vsftpd
 rm $FTP_CONF_DIR/`basename $0`
+
+touch /var/log/vsftpd.log > /dev/zero 2>&1
 
 cd $FTP_CONF_DIR
 
