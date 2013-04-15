@@ -1,0 +1,7 @@
+.*.swp
+*.o
+a.out
+*~
+test
+tags
+.svn
