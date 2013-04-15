@@ -15,18 +15,19 @@
 #
 #============================================================================================
  
-#set -x
+# set -x
 
 BACKUP_DATE=`date +%F`
 FTP_NAME="ftp"
-FTP_VIRTUSER_NAME="ftpvirtuser"
+FTP_VUSERS_NAME="ftpvuser"
 FTP_CONF_DIR="/etc/vsftpd"
 FTP_ROOT_DIR="/var/$FTP_NAME"
-FTP_VIRTUSER_CONF_DIR="/etc/vsftpd/virtuser_conf"
-FTP_VIRTUSER_ROOT_DIR="/var/$FTP_VIRTUSER_NAME"
+FTP_VUSERS_CONF_DIR="/etc/vsftpd/vusers_conf"
+FTP_VUSERS_ROOT_DIR="/var/$FTP_VUSERS_NAME"
 PAM_CONF_DIR="/etc/pam.d"
 
 cp -r $FTP_CONF_DIR $FTP_CONF_DIR.$BACKUP_DATE.bak
+cp $PAM_CONF_DIR/vsftpd $PAM_CONF_DIR/vsftpd.bak
 rm -rf $FTP_CONF_DIR/*
 
 for name in `ls`
@@ -35,29 +36,27 @@ do
 done
 
 mv $FTP_CONF_DIR/pam_vsftpd $PAM_CONF_DIR/vsftpd
-rm $FTP_CONF_DIR/`basename $0` $FTP_CONF_DIR/README.md
+rm $FTP_CONF_DIR/`basename $0`
 
 cd $FTP_CONF_DIR
 
-useradd ftp -d $FTP_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
-useradd -d $FTP_VIRTUSER_ROOT_DIR -s /sbin/nologin ftpvirtuser > /dev/zero 2>&1
+useradd $FTP_NAME -d $FTP_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
+useradd $FTP_VUSERS_NAME -d $FTP_VUSERS_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
 
-db_load -T -t hash -f $FTP_CONF_DIR/virtusers $FTP_CONF_DIR/virtusers.db
+db_load -T -t hash -f $FTP_CONF_DIR/vusers $FTP_CONF_DIR/vusers.db
 
 #sed -n 'n;p' filename # 取偶数行
-for x in `sed -n 'p;n' virtusers`
+for x in `sed -n 'p;n' vusers` # 取奇数行
 do
-    #echo $x
-
     if [ ${x##*.} = "r_w" ]; then
-        cp $FTP_VIRTUSER_CONF_DIR/virtuser_conf.r_w $FTP_VIRTUSER_CONF_DIR/$x
+        cp $FTP_VUSERS_CONF_DIR/vusers_conf.r_w $FTP_VUSERS_CONF_DIR/$x
     else
-        cp $FTP_VIRTUSER_CONF_DIR/virtuser_conf.r $FTP_VIRTUSER_CONF_DIR/$x
+        cp $FTP_VUSERS_CONF_DIR/vusers_conf.r $FTP_VUSERS_CONF_DIR/$x
     fi
 
-    sed -i "s/virtuser_name/${x}/" $FTP_VIRTUSER_CONF_DIR/$x
-    mkdir -p $FTP_VIRTUSER_ROOT_DIR/$x
+    sed -i "s/vuser_name/${x}/" $FTP_VUSERS_CONF_DIR/$x
+    mkdir -p $FTP_VUSERS_ROOT_DIR/$x
 done
 
-chown -R ftp.ftp /var/ftp
-chown -R ftpvirtuser.ftpvirtuser $FTP_VIRTUSER_ROOT_DIR
+chown -R $FTP_NAME.$FTP_NAME $FTP_ROOT_DIR
+chown -R $FTP_VUSERS_NAME.$FTP_VUSERS_NAME $FTP_VUSERS_ROOT_DIR
