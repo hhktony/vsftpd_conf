@@ -1,33 +1,20 @@
-step 0: Some changes
-=======
+### Some changes
 
-0. Install the relevant software
+1. Install the relevant software
 
-* CentOS
+    yum install -y vsftpd db4*
 
-    # yum install -y vsftpd db4*
+2. Backup your configure file
 
-* Ubuntn
+    cp -r /etc/vsftpd/ /etc/vsftpd.\`date +%F\`.bak
+    
+    cp -r /etc/pam.d/vsftpd /etc/pam.d/vsftpd.\`date +%F\`.bak
 
-    # sudo apt-get install -y vsftpd db4* 
+3. Add virtual users, additional username and password
 
-1. Backup your configure file
+    vim vusers
 
-* CentOS
-
-    # cp -r /etc/vsftpd/ /etc/vsftpd.`date +%F`.bak
-    # cp -r /etc/pam.d/vsftpd /etc/pam.d/vsftpd.`date +%F`.bak
-
-* Ubuntn
-
-    # cp /etc/vsftpd.conf /etc/vsftpd.conf.`date +%F`.bak
-    # cp -r /etc/pam.d/vsftpd /etc/pam.d/vsftpd.`date +%F`.bak
-
-2. Add virtual users
-
-    # vim vusers
-
-* Instructions: 
+Instructions:
 
 ```
 The odd number line is user name,
@@ -38,45 +25,39 @@ End with .r is read only
 
 End with .r_w is read only
 
-The virtual user name must end with `.r` or `.r_w`
+The virtual user name must end with .r or .r_w
+
+eg:
+    test.r
+    test
 ```
 
 
-step 1: Install configure 
-=======
+### Install configure
 
 Execute the script
-    
-    # chmod +x create_vsftpd_conf.sh
-    # ./create_vsftpd_conf.sh
 
-step 2: PS
-=======
+    chmod +x update.sh
+    ./update.sh
 
-* If you want add some virtual user, step following
+### PS
 
-1.  Add user
+If you want add some virtual user, step following
 
-    # vim /etc/vusers # Refer to the `step0 2(Add virtual users)`
+1.  Add user(Refer to the Add virtual users)
 
-2. Generates the database files
+    vim /etc/vusers
 
-    # db_load -T -t hash -f /etc/vsftpd/vusers /etc/vsftpd/vusers.db
+2. Produce relevant documents
 
-3. Generates the configure files
+    ./update.sh adduser
 
-    # cp /etc/vsftpd/vusers_conf/vusers_conf.x /etc/vsftpd/vusers_conf/username # x depend on permissions
-
-4. Create user's root directory
-
-    # mkdir /var/ftpvuser/usrename
-
-5. Change belongs to who
-
-    # chown -R ftpvuser.ftpvuser /var/ftpvuser/
-
-* Instructions
+Instructions
 
 ```
 Relevant documents according to the configuration of a file
 ```
+
+## FAQ
+
+If some settings and do not understand, see `vsftpd.conf`
