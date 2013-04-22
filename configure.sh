@@ -2,18 +2,20 @@
 
 #============================================================================================
 #
-#         FileName: update_conf.sh
+#         FileName: configure.sh
 #
 #      Descriptions:
 #
 #          Version: 1.0
-#          Created: 2013-04-15 14:44:41
+#          Created: 2013-04-22 10:24:58
 #         Revision: (none)
 #
 #           Author: xutao(mark), butbueatiful@gmail.com
 #          Company: wanwei-tech
 #
 #============================================================================================
+ 
+
 # set -x
 
 BACKUP_DATE=`date +%F`
@@ -25,12 +27,17 @@ FTP_VUSERS_CONF_DIR="/etc/vsftpd/vusers_conf"
 FTP_VUSERS_ROOT_DIR="/var/$FTP_VUSERS_NAME"
 PAM_CONF_DIR="/etc/pam.d"
 
+if [ $# == 0 ];then
+    printf "\e[01;31m Usage: $0 <init/adduser>\E[0m\n\n" 
+    exit 1;
+fi
+
 add_user()
 {
     db_load -T -t hash -f $FTP_CONF_DIR/vusers $FTP_CONF_DIR/vusers.db
 
     #sed -n 'n;p' filename # 取偶数行
-    for x in `sed -n 'p;n' vusers` # 取奇数行
+    for x in `sed -n 'p;n' $FTP_CONF_DIR/vusers` # 取奇数行
     do
         if [ ${x##*.} = "r_w" ]; then
             cp $FTP_VUSERS_CONF_DIR/Templates/vuser_conf.r_w $FTP_VUSERS_CONF_DIR/$x
@@ -42,7 +49,6 @@ add_user()
         mkdir -p $FTP_VUSERS_ROOT_DIR/$x
     done
 
-    chown -R $FTP_NAME.$FTP_NAME $FTP_ROOT_DIR
     chown -R $FTP_VUSERS_NAME.$FTP_VUSERS_NAME $FTP_VUSERS_ROOT_DIR
 }
 

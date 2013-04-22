@@ -1,4 +1,4 @@
-teacher.r_w
-teacher
-student.r
-student
+admin.r_w
+admin
+visitor.r
+visitor

@@ -37,8 +37,8 @@ eg:
 
 Execute the script
 
-    chmod +x update.sh
-    ./update.sh
+    chmod +x configure.sh
+    ./configure.sh init
 
 ### PS
 
@@ -50,7 +50,7 @@ If you want add some virtual user, step following
 
 2. Produce relevant documents
 
-    ./update.sh adduser
+    ./configure.sh adduser
 
 Instructions
 
