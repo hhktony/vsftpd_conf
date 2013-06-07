@@ -27,7 +27,7 @@ FTP_VUSERS_CONF_DIR="/etc/vsftpd/vusers_conf"
 FTP_VUSERS_ROOT_DIR="/var/$FTP_VUSERS_NAME"
 PAM_CONF_DIR="/etc/pam.d"
 
-if [ $# == 0 ];then
+if [ $# = 0 ];then
     printf "\e[01;31m Usage: $0 <init/adduser>\E[0m\n\n" 
     exit 1;
 fi
@@ -67,7 +67,7 @@ do
 done
 
 mv $FTP_CONF_DIR/pam_vsftpd $PAM_CONF_DIR/vsftpd
-#rm $FTP_CONF_DIR/`basename $0`
+#rm $FTP_CONF_DIR/`basename $0` $FTP_CONF_DIR/README.md
 
 touch /var/log/vsftpd.log > /dev/zero 2>&1
 
@@ -77,3 +77,10 @@ useradd $FTP_NAME -d $FTP_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
 useradd $FTP_VUSERS_NAME -d $FTP_VUSERS_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
 
 add_user
+
+chmod 600 $FTP_CONF_DIR/vusers $FTP_CONF_DIR/vusers.db
+
+printf "\n-----------------> Configure over <-----------------\n\n" 
+printf "Configuration file located in /etc/vsftpd/\n" 
+printf "pam_vsftpd file located in /etc/pam.d/\n" 
+printf "user dir in /var/ftpvuser/\n\n" 
