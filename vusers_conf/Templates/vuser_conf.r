@@ -1,4 +1,4 @@
-local_root=/var/ftpvuser/visitor.r
+local_root=/var/ftpvuser/vuser_name
 anonymous_enable=NO
 write_enable=NO
 local_umask=022

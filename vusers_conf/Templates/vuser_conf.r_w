@@ -1,4 +1,4 @@
-local_root=/var/ftpvuser/work.r_w
+local_root=/var/ftpvuser/vuser_name
 write_enable=YES
 anon_umask=022
 anon_world_readable_only=NO
