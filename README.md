@@ -15,17 +15,6 @@ Instructions:
 The odd number line is user name,
 
 The even number line is user password.
-
-End with .r is read only
-
-End with .r_w is read only
-
-The virtual user name must end with .r or .r_w
-
-eg:
-    test.r
-    test
-
 ```
 
 ### Install configure
@@ -33,11 +22,11 @@ eg:
 Execute the script
 
     chmod +x vsftpd-ctl.sh
-    ./vsftpd-ctl.sh --init
+    ./vsftpd-ctl.sh init
 
 ### Adduser
 
-    ./vsftpd-ctl.sh --useradd username passwd rw
+    ./vsftpd-ctl.sh useradd username passwd rw
 
 Instructions
 
