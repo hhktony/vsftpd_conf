@@ -1,8 +1,8 @@
 #%PAM-1.0
 #auth required pam_mysql.so user=ftpvirtuser passwd=123456 host=localhost db=ftpvirtuser table=users usercolumn=name passwdcolumn=passwd crypt=0
 #account required pam_mysql.so user=ftpvirtuser passwd=123456 host=localhost db=ftpvirtuser table=users usercolumn=name passwdcolumn=passwd crypt=0
-auth       sufficient   /lib/security/pam_userdb.so     db=/etc/vsftpd/vusers
-account    sufficient   /lib/security/pam_userdb.so     db=/etc/vsftpd/vusers
+auth       sufficient   /lib64/security/pam_userdb.so     db=/etc/vsftpd/vusers
+account    sufficient   /lib64/security/pam_userdb.so     db=/etc/vsftpd/vusers
 session    optional     pam_keyinit.so                  force revoke
 auth       required	    pam_listfile.so                 item=user sense=deny file=/etc/vsftpd/ftpusers onerr=succeed
 auth       required	    pam_shells.so
