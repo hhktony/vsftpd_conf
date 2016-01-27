@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#============================================================================================
+#============================================================
 #
 #         FileName: configure.sh
 #
@@ -10,88 +10,80 @@
 #          Created: 2013-04-22 10:24:58
 #         Revision: (none)
 #
-#           Author: xutao(mark), butbueatiful@gmail.com
-#          Company: wanwei-tech
+#           Author: xutao(Tony Xu), hhktony@gmail.com
+#          Company: myself
 #
-#============================================================================================
+#============================================================
 
+ARCH=$(uname -m)
 BACKUP_DATE=`date +%F`
 FTP_NAME="ftp"
 FTP_VUSERS_NAME="ftpvuser"
 FTP_CONF_DIR="/etc/vsftpd"
 FTP_ROOT_DIR="/var/$FTP_NAME"
-FTP_VUSERS_CONF_DIR="/etc/vsftpd/vusers_conf"
-FTP_VUSERS_CONF_FILE="/etc/vsftpd/vusers"
-FTP_VUSERS_ROOT_DIR="/var/$FTP_VUSERS_NAME"
+FTP_VCONF_DIR="/etc/vsftpd/vusers_conf"
+FTP_VCONF_FILE="/etc/vsftpd/.vusers"
+FTP_VROOT_DIR="/var/$FTP_VUSERS_NAME"
 PAM_CONF_DIR="/etc/pam.d"
 
 help_info() {
   cat << EOF
 usage: $0 [OPTIONS]
 
-    --help                                  Show this message
-    --init                                  Init config
-    --user-add <username> <passwd> <rw|r>   Add user
-    --user-list                             List user
+    help                                  Show this message
+    init                                  Init config
+    user-add <username> <passwd> <rw|r>   Add user
+    user-list                             List user
 EOF
 }
 
-print_msg()
-{
-    msg=$*
-    echo -e ${blue}$msg${normal}
+msg() {
+    printf '%b\n' "$1" >&2
 }
 
-user_add()
-{
+error() {
+    msg "\33[31m[✘]\33[0m ${1}${2}"
+    exit 1
+}
+
+user_add() {
     local username=$1
     local passwd=$2
     local mode=$3
 
-    echo $username >> $FTP_VUSERS_CONF_FILE
-    echo $passwd >> $FTP_VUSERS_CONF_FILE
+    if sed -n 'p;n' $FTP_VCONF_FILE | grep $username > /dev/null; then
+        error "'$username' Already exist"
+    fi
+
+    echo $username >> $FTP_VCONF_FILE
+    echo $passwd >> $FTP_VCONF_FILE
 
     if [ $mode == "rw" ]; then
-        cp $FTP_VUSERS_CONF_DIR/Templates/vuser_conf.r_w $FTP_VUSERS_CONF_DIR/$username
+        cp $FTP_VCONF_DIR/Templates/vuser_conf.r_w $FTP_VCONF_DIR/$username
     else
-        cp $FTP_VUSERS_CONF_DIR/Templates/vuser_conf.r   $FTP_VUSERS_CONF_DIR/$unameser
+        cp $FTP_VCONF_DIR/Templates/vuser_conf.r   $FTP_VCONF_DIR/$unameser
     fi
-    sed -i "s/vuser_name/${username}/" $FTP_VUSERS_CONF_DIR/$username
-    mkdir -p $FTP_VUSERS_ROOT_DIR/$username
+    sed -i "s/vuser_name/${username}/" $FTP_VCONF_DIR/$username
+    mkdir -p $FTP_VROOT_DIR/$username
 
-    chown -R $FTP_VUSERS_NAME.$FTP_VUSERS_NAME $FTP_VUSERS_ROOT_DIR
-    db_load -T -t hash -f $FTP_VUSERS_CONF_FILE $FTP_CONF_DIR/vusers.db
+    chown -R $FTP_VUSERS_NAME.$FTP_VUSERS_NAME $FTP_VROOT_DIR
+    db_load -T -t hash -f $FTP_VCONF_FILE $FTP_CONF_DIR/vusers.db
 }
 
-user_add_bak()
-{
-    # sed -n 'n;p' filename # 取偶数行
-    for user in `sed -n 'p;n' $FTP_VUSERS_CONF_FILE` # 取奇数行
-    do
-        if [ ${user##*.} = "r_w" ]; then
-            cp $FTP_VUSERS_CONF_DIR/Templates/vuser_conf.r_w $FTP_VUSERS_CONF_DIR/$user
-        else
-            cp $FTP_VUSERS_CONF_DIR/Templates/vuser_conf.r $FTP_VUSERS_CONF_DIR/$user
-        fi
-
-        sed -i "s/vuser_name/${user}/" $FTP_VUSERS_CONF_DIR/$user
-        mkdir -p $FTP_VUSERS_ROOT_DIR/$user
-    done
-
-    chown -R $FTP_VUSERS_NAME.$FTP_VUSERS_NAME $FTP_VUSERS_ROOT_DIR
-    db_load -T -t hash -f $FTP_VUSERS_CONF_FILE $FTP_CONF_DIR/vusers.db
+user_list() {
+    sed -n 'p;n' $FTP_VCONF_FILE # 取偶数行
 }
 
-user_list()
-{
-    sed -n 'p;n' $FTP_VUSERS_CONF_FILE # 取偶数行
-}
-
-init()
-{
+init() {
     cp -r $FTP_CONF_DIR $FTP_CONF_DIR.$BACKUP_DATE.bak
     cp $PAM_CONF_DIR/vsftpd $PAM_CONF_DIR/vsftpd.bak
     rm -rf $FTP_CONF_DIR/*
+
+    if [ $ARCH = 'x86_64' ]; then
+        sed -i 's/%LIB%/lib64/' pam_vsftpd
+    else
+        sed -i 's/%LIB%/lib/' pam_vsftpd
+    fi
 
     for name in `ls`
     do
@@ -106,28 +98,28 @@ init()
     cd $FTP_CONF_DIR
 
     useradd $FTP_NAME -d $FTP_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
-    useradd $FTP_VUSERS_NAME -d $FTP_VUSERS_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
+    useradd $FTP_VUSERS_NAME -d $FTP_VROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
 
-    user_add
+    touch $FTP_VCONF_FILE
+    db_load -T -t hash -f $FTP_VCONF_FILE $FTP_CONF_DIR/vusers.db
+    chmod 600 $FTP_VCONF_FILE $FTP_CONF_DIR/vusers.db
 
-    chmod 600 $FTP_CONF_DIR/vusers $FTP_CONF_DIR/vusers.db
-
-    print_msg "\n-----------------> Configure over <-----------------\n\n
+    msg "\n-----------------> Configure over <-----------------\n\n
     1. Configuration file located in /etc/vsftpd/\n
     2. pam_vsftpd file located in /etc/pam.d/\n
     3. user dir in /var/ftpvuser/\n\n"
 }
 
 case $1 in
-  --help )
+  --help|help|-h )
       help_info
       exit 0
       ;;
-  --init )
+  init )
     init;;
-  --user-add )
+  user-add )
     user_add $2 $3 $4;;
-  --user-list )
+  user-list )
     user_list;;
   *)
     echo "unknown option: $1"
