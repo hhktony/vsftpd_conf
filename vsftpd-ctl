@@ -18,13 +18,15 @@
 ARCH=$(uname -m)
 BACKUP_DATE=`date +%F-%H%M%S`
 FTP_NAME="ftp"
-FTP_VUSERS_NAME="ftpvuser"
 FTP_CONF_DIR="/etc/vsftpd"
 FTP_ROOT_DIR="/var/$FTP_NAME"
+FTP_VUSERNAME="ftpvuser"
 FTP_VCONF_DIR="/etc/vsftpd/vusers_conf"
-FTP_VROOT_DIR="/var/$FTP_VUSERS_NAME"
+FTP_VROOT_DIR="/var/$FTP_VUSERNAME"
 FTP_VDB_FILE="$FTP_CONF_DIR/vusers.db"
 PAM_CONF_DIR="/etc/pam.d"
+
+[ $UID -ne 0 ] && error "This program has to be run as root!"
 
 help_info() {
   cat << EOF
@@ -53,7 +55,9 @@ success() {
     fi
 }
 
-[ $UID -ne 0 ] && error "This program has to be run as root!"
+ensure_security() {
+    chown 600 $FTP_VDB_FILE
+}
 
 user_add() {
     local username=$1
@@ -70,9 +74,10 @@ user_add() {
     fi
     sed -i "s/vuser_name/${username}/" $FTP_VCONF_DIR/$username
     mkdir -p $FTP_VROOT_DIR/$username
-    chown -R $FTP_VUSERS_NAME.$FTP_VUSERS_NAME $FTP_VROOT_DIR
+    chown -R $FTP_VUSERNAME:$FTP_VUSERNAME $FTP_VROOT_DIR
 
     echo -e "$username\n$passwd" | $DB_LOAD -T -t hash $FTP_VDB_FILE
+    ensure_security
 }
 
 user_list() {
@@ -93,6 +98,7 @@ user_delete() {
     $DB_LOAD -T -t hash ${FTP_VDB_FILE}.new
 
     mv ${FTP_VDB_FILE}.new $FTP_VDB_FILE
+    ensure_security
     rm -rf $FTP_VCONF_DIR/$username
     mv $FTP_VROOT_DIR/$username{,-$BACKUP_DATE}
     ret="$?"
@@ -102,32 +108,25 @@ user_delete() {
 
 init() {
     cp -r $FTP_CONF_DIR{,-$BACKUP_DATE.bak}
-    # TODO
-    cp $PAM_CONF_DIR/vsftpd $PAM_CONF_DIR/vsftpd.bak
     rm -rf $FTP_CONF_DIR/*
 
     if [ $ARCH = 'x86_64' ]; then
-        sed -i 's/%LIB%/lib64/' pam_vsftpd
+        sed -i 's/%LIB%/lib64/' pam_vsftpd_vusers
     else
-        sed -i 's/%LIB%/lib/' pam_vsftpd
+        sed -i 's/%LIB%/lib/' pam_vsftpd_vusers
     fi
 
-    for name in `ls`
+    for i in `ls`
     do
-        cp $name $FTP_CONF_DIR -r
+        cp $i $FTP_CONF_DIR -r
     done
-
-    mv $FTP_CONF_DIR/pam_vsftpd $PAM_CONF_DIR/vsftpd
+    mv $FTP_CONF_DIR/pam_vsftpd_vusers $PAM_CONF_DIR
     # rm $FTP_CONF_DIR/`basename $0` $FTP_CONF_DIR/README.md
 
     touch /var/log/vsftpd.log > /dev/zero 2>&1
 
-    cd $FTP_CONF_DIR
-
     useradd $FTP_NAME -d $FTP_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
-    useradd $FTP_VUSERS_NAME -d $FTP_VROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
-
-    chmod 600 $FTP_VDB_FILE
+    useradd $FTP_VUSERNAME -d $FTP_VROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
 
     msg "\n-----------------> Configure over <-----------------\n\n
     1. Configuration file located in /etc/vsftpd/
