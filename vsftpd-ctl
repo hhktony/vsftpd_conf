@@ -26,20 +26,6 @@ FTP_VROOT_DIR="/var/$FTP_VUSERNAME"
 FTP_VDB_FILE="$FTP_CONF_DIR/vusers.db"
 PAM_CONF_DIR="/etc/pam.d"
 
-[ $UID -ne 0 ] && error "This program has to be run as root!"
-
-help_info() {
-  cat << EOF
-usage: $0 [OPTIONS]
-
-    help                                  Show this message
-    init                                  Init config
-    user-add <username> <passwd> <rw|r>   Add user
-    user-list                             List user
-    user-delete <username>                Delete user
-EOF
-}
-
 msg() {
     printf '%b\n' "$1" >&2
 }
@@ -57,6 +43,20 @@ success() {
 
 ensure_security() {
     chown 600 $FTP_VDB_FILE
+}
+
+[ $UID -ne 0 ] && error "This program has to be run as root!"
+
+help_info() {
+  cat << EOF
+usage: $0 [OPTIONS]
+
+    help                                  Show this message
+    init                                  Init config
+    user-add <username> <passwd> <rw|r>   Add user
+    user-list                             List user
+    user-delete <username>                Delete user
+EOF
 }
 
 user_add() {
