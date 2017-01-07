@@ -2,7 +2,8 @@
 
 1. Install the relevant software
 
-    yum install -y vsftpd lftp ftp libdb-utils
+    yum install -y vsftpd lftp ftp libdb-utils # CentOS
+    apt install -y vsftpd lftp ftp db-util     # Ubuntu
 
 2. Backup your configure file
 
