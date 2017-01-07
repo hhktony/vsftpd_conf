@@ -15,6 +15,8 @@
 #
 #============================================================
 
+[ $UID -ne 0 ] && echo "This program has to be run as root!" && exit 1
+
 ARCH=$(uname -m)
 BACKUP_DATE=`date +%F-%H%M%S`
 FTP_NAME="ftp"
@@ -26,138 +28,177 @@ FTP_VROOT_DIR="/var/$FTP_VUSERNAME"
 FTP_VDB_FILE="$FTP_CONF_DIR/vusers.db"
 PAM_CONF_DIR="/etc/pam.d"
 
+[ ! -d $FTP_CONF_DIR ] && mkdir -p $FTP_CONF_DIR
+
 msg() {
-    printf '%b\n' "$1" >&2
+  printf '%b\n' "$1" >&2
 }
 
-error() {
-    msg "\33[31m[✘]\33[0m ${1}${2}"
-    exit 1
+tips()  { echo -e " \033[1;33m$@\033[0m";  		}
+die()   { echo -e " \033[1;31m✖\033[0m  $@";  exit 1; }
+
+success()
+{
+  [ "$ret" -eq '0' ] && msg "\33[32m[✔]\33[0m ${1}${2}"
 }
 
-success() {
-    if [ "$ret" -eq '0' ]; then
-        msg "\33[32m[✔]\33[0m ${1}${2}"
-    fi
-}
-
-ensure_security() {
-    chown 600 $FTP_VDB_FILE
-}
-
-[ $UID -ne 0 ] && error "This program has to be run as root!"
-
-help_info() {
+help_info()
+{
   cat << EOF
-usage: $0 [OPTIONS]
+  usage: $0 [OPTIONS]
 
-    help                                  Show this message
-    init                                  Init config
-    user-add <username> <passwd> <rw|r>   Add user
-    user-list                             List user
-    user-delete <username>                Delete user
+  help                                  Show this message
+  init                                  Init config
+  user-add <username> <passwd> <rw|r>   Add user
+  user-list                             List user
+  gat-pass                              get user password
+  user-delete <username>                Delete user
 EOF
 }
 
-user_add() {
-    local username=$1
-    local passwd=$2
-    local mode=$3
-    if [[ -z $username || -z $passwd || -z $mode ]]; then
-      error "user_add: username or passwd or mode is null!"
-    fi
+detect_os()
+{
+  if [[ -x $(command -v lsb_release 2>/dev/null) ]]; then
+    DISTRO=`lsb_release -si`
+    return 0
+  fi
 
-    if [ $mode == "rw" ]; then
-        cp $FTP_VCONF_DIR/Templates/vuser_conf.r_w $FTP_VCONF_DIR/$username
-    else
-        cp $FTP_VCONF_DIR/Templates/vuser_conf.r   $FTP_VCONF_DIR/$unameser
-    fi
-    sed -i "s/vuser_name/${username}/" $FTP_VCONF_DIR/$username
-    mkdir -p $FTP_VROOT_DIR/$username
-    chown -R $FTP_VUSERNAME:$FTP_VUSERNAME $FTP_VROOT_DIR
-
-    echo -e "$username\n$passwd" | $DB_LOAD -T -t hash $FTP_VDB_FILE
-    ensure_security
+  if [ -f /etc/centos-release ]; then
+    DISTRO="CentOS"
+  elif [ -f /etc/debian_version ]; then
+    DISTRO="Debian"
+  else
+    die "Unable to determine DISTRO, can not continue."
+  fi
 }
 
-user_list() {
-    [ -f $FTP_VDB_FILE ] || exit 0
-    $DB_DUMP -p $FTP_VDB_FILE |
-    sed -e '1,/HEADER=END/d' -e '/DATA=END/,$d' |
-    sed 's/^[ \t]*//' | sed -n '1~2p'
+ensure_security()
+{
+  chown 600 $FTP_VDB_FILE
 }
 
-user_delete() {
-    local username=$1
+user_add()
+{
+  local username=$1
+  local passwd=$2
+  local mode=$3
 
-    $DB_DUMP -p $FTP_VDB_FILE |
-    sed -e '1,/HEADER=END/d' -e '/DATA=END/,$d' |
-    sed 's/^[ \t]*//' |
-    sed "/^$username$/{n;d}" |
-    sed "/^$username$/d" |
-    $DB_LOAD -T -t hash ${FTP_VDB_FILE}.new
+  [[ -z $username || -z $passwd || -z $mode ]] &&
+    die "user_add: username or passwd or mode is null!"
 
-    mv ${FTP_VDB_FILE}.new $FTP_VDB_FILE
-    ensure_security
-    rm -rf $FTP_VCONF_DIR/$username
-    mv $FTP_VROOT_DIR/$username{,-$BACKUP_DATE}
-    ret="$?"
-    success "$username already deleled"
-    success "backed up to $FTP_VROOT_DIR/$username-$BACKUP_DATE."
+  [[ $mode == "rw" ]] &&
+    cp $FTP_VCONF_DIR/Templates/vuser_conf.r_w $FTP_VCONF_DIR/$username ||
+    cp $FTP_VCONF_DIR/Templates/vuser_conf.r   $FTP_VCONF_DIR/$unameser
+  sed -i "s/vuser_name/${username}/" $FTP_VCONF_DIR/$username
+  mkdir -p $FTP_VROOT_DIR/$username
+  chown -R $FTP_VUSERNAME:$FTP_VUSERNAME $FTP_VROOT_DIR
+
+  echo -e "$username\n$passwd" | $DB_LOAD -T -t hash $FTP_VDB_FILE
+  ensure_security
 }
 
-init() {
-    cp -r $FTP_CONF_DIR{,-$BACKUP_DATE.bak}
-    rm -rf $FTP_CONF_DIR/*
-
-    if [ $ARCH = 'x86_64' ]; then
-        sed -i 's/%LIB%/lib64/' pam_vsftpd_vusers
-    else
-        sed -i 's/%LIB%/lib/' pam_vsftpd_vusers
-    fi
-
-    for i in `ls`
-    do
-        cp $i $FTP_CONF_DIR -r
-    done
-    mv $FTP_CONF_DIR/pam_vsftpd_vusers $PAM_CONF_DIR
-    # rm $FTP_CONF_DIR/`basename $0` $FTP_CONF_DIR/README.md
-
-    touch /var/log/vsftpd.log > /dev/zero 2>&1
-
-    useradd $FTP_NAME -d $FTP_ROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
-    useradd $FTP_VUSERNAME -d $FTP_VROOT_DIR -s /sbin/nologin > /dev/zero 2>&1
-
-    msg "\n-----------------> Configure over <-----------------\n\n
-    1. Configuration file located in /etc/vsftpd/
-    2. pam_vsftpd file located in /etc/pam.d/
-    3. user dir in /var/ftpvuser/"
+user_list()
+{
+  [ -f $FTP_VDB_FILE ] || exit 0
+  $DB_DUMP -p $FTP_VDB_FILE |
+  sed -e '1,/HEADER=END/d' -e '/DATA=END/,$d' |
+  sed 's/^[ \t]*//' | sed -n 'p;n'
 }
 
-check_db_utils() {
+get_pass()
+{
+  local username=$1
+
+  [[ -z $username ]] && die "get-pass: username is null!"
+
+  [ -f $FTP_VDB_FILE ] || exit 0
+  $DB_DUMP -p $FTP_VDB_FILE |
+  sed -e '1,/HEADER=END/d' -e '/DATA=END/,$d' |
+  sed 's/^[ \t]*//' | grep "^${username}$" -A1 | sed -n '2p'
+}
+
+user_delete()
+{
+  local username=$1
+
+  [[ -z $username ]] && die "user-delete: username is null!"
+
+  $DB_DUMP -p $FTP_VDB_FILE |
+  sed -e '1,/HEADER=END/d' -e '/DATA=END/,$d' |
+  sed 's/^[ \t]*//' |
+  sed "/^$username$/{n;d}" |
+  sed "/^$username$/d" |
+  $DB_LOAD -T -t hash ${FTP_VDB_FILE}.new
+
+  mv ${FTP_VDB_FILE}.new $FTP_VDB_FILE
+  ensure_security
+
+  rm -rf $FTP_VCONF_DIR/$username
+  mv $FTP_VROOT_DIR/$username{,-$BACKUP_DATE}
+  ret="$?"
+  success "$username already deleled"
+  success "backed up to $FTP_VROOT_DIR/$username-$BACKUP_DATE."
+}
+
+init()
+{
+  cp -r $FTP_CONF_DIR{,-$BACKUP_DATE.bak}
+  rm -rf $FTP_CONF_DIR/*
+
+  for i in `ls`
+  do
+    cp $i $FTP_CONF_DIR -r
+  done
+  # rm $FTP_CONF_DIR/`basename $0` $FTP_CONF_DIR/README.md
+
+  if [[ "$DISTRO" =~ (Ubuntu) || "$DISTRO" =~ (Debian) ]]; then
+    mv $FTP_CONF_DIR/vsftpd.conf /etc
+    sed -i 's:%LIB%:lib/x86_64-linux-gnu:' pam_vsftpd_vusers
+  elif [[ "$DISTRO" =~ (CentOS) ]]; then
+    [[ $ARCH = 'x86_64' ]] &&
+      sed -i 's:%LIB%:lib64:' pam_vsftpd_vusers ||
+      sed -i 's:%LIB%:lib:' pam_vsftpd_vusers
+  else
+    die "Unable to determine plaform, can not continue."
+  fi
+  mv $FTP_CONF_DIR/pam_vsftpd_vusers $PAM_CONF_DIR
+
+  touch /var/log/vsftpd.log > /dev/null 2>&1
+
+  useradd $FTP_NAME -d $FTP_ROOT_DIR -s /sbin/nologin > /dev/null 2>&1
+  useradd $FTP_VUSERNAME -d $FTP_VROOT_DIR -s /sbin/nologin > /dev/null 2>&1
+
+  tips "
+  1. Configuration file located in /etc/vsftpd/
+  2. pam_vsftpd file located in /etc/pam.d/pam_vsftpd_vusers
+  3. vuser dir in /var/ftpvuser/"
+}
+
+check_db_utils()
+{
   if [ -x /usr/bin/db_load ]; then
     DB_LOAD=/usr/bin/db_load
     DB_DUMP=/usr/bin/db_dump
     return 0
   fi
-  return 1
+  die "Could not find db_load/db_dump! Please install the libdb-utils package."
 }
 
-if ! check_db_utils; then
-    error "Could not find db_load/db_dump! Please install the libdb-utils package."
-fi
+check_db_utils
 
 case $1 in
   --help|help|-h )
-      help_info
-      exit 0
-      ;;
+    help_info
+    exit 0
+    ;;
   init )
     init;;
   user-add )
     user_add $2 $3 $4;;
   user-list )
     user_list;;
+  get-pass )
+    get_pass $2;;
   user-delete )
     user_delete $2;;
   *)
